@@ -20,6 +20,8 @@ library(tidycensus)
 library(htmltools)
 library(tigris)
 library(reshape2)
+library(ggrepel)
+library(ggmap)
 
 options(tigris_use_cache = TRUE)
 ```
@@ -37,6 +39,14 @@ communityareas <- read_sf("geo_export_72cf3d72-fa82-4448-a382-c9dd6dcb4fd2.shp")
 neighborhoods <- read_sf("Neighborhoods_2012b.shp")
 
 neighborhoods <- st_transform(neighborhoods, 4326)
+
+data <- read_csv("Per_Capita_Income.csv")
+
+communityareas$community <- str_to_title(communityareas$community)
+
+full_data <- merge(communityareas,data, by.x="community", by.y="COMMUNITY AREA NAME")
+
+colnames(full_data) <- str_to_lower(colnames(full_data)) %>% str_replace_all(.," ","_")
 ```
 
 ```{r labels}
@@ -85,6 +95,19 @@ leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>%
               fillOpacity = .001,
               smoothFactor = .2)
 
+```
+
+```{r}
+ggplot() + 
+  geom_sf(full_data,
+          mapping = aes(fill=per_capita_income, color=per_capita_income),
+          inherit.aes = F,
+          alpha=.99) + 
+  scale_fill_viridis() + 
+  scale_color_viridis() +
+  theme_minimal() + 
+  ggtitle("Per Capita Income By Community Areas in Chicago",
+          subtitle = "(A chance to look at some numbers)")
 ```
 
 
