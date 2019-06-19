@@ -1,0 +1,90 @@
+---
+title: "Chicago Maps"
+author: "Drazzel Feliu"
+date: "6/18/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r library_load, include=FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(sf)
+library(viridis)
+library(leaflet)
+library(maps)
+library(htmlwidgets)
+library(tidycensus)
+library(htmltools)
+library(tigris)
+library(reshape2)
+
+options(tigris_use_cache = TRUE)
+```
+
+```{r shapefiles, include=FALSE}
+boroughboundaries <- get_acs(geography = "county",
+        variables = "B19013_001",
+        state = "IL",
+        county = "Cook",
+        geometry = T,
+        year = 2017)
+
+communityareas <- read_sf("geo_export_72cf3d72-fa82-4448-a382-c9dd6dcb4fd2.shp")
+
+neighborhoods <- read_sf("Neighborhoods_2012b.shp")
+
+neighborhoods <- st_transform(neighborhoods, 4326)
+```
+
+```{r labels}
+calabels <- sprintf(
+  paste0("<strong>Name: </strong>%s<br/>"),
+  communityareas$community) %>% 
+  lapply(HTML)
+
+callaboptions <- labelOptions(
+  style = list("font-weight" = "normal", padding = "3px 8px"),
+  textsize = "15px",
+  direction = "auto")
+
+neighlabels <- sprintf(
+  paste0("<strong>Name: </strong>%s<br/>"),
+  neighborhoods$PRI_NEIGH) %>% 
+  lapply(HTML)
+
+neighlaboptions <- labelOptions(
+  style = list("font-weight" = "normal", padding = "3px 8px"),
+  textsize = "15px",
+  direction = "auto")
+```
+
+```{r community_areas}
+leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data= st_geometry(communityareas),
+              color = "black",
+              fillColor = NULL,
+              popup = calabels,
+              popupOptions = callaboptions,
+              weight = 2.5,
+              fillOpacity = .001,
+              smoothFactor = .2)
+```
+
+
+```{r neighborhoods}
+leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data= st_geometry(neighborhoods),
+              color = "black",
+              fillColor = NULL,
+              popup = neighlabels,
+              popupOptions = neighlaboptions,
+              weight = 2.5,
+              fillOpacity = .001,
+              smoothFactor = .2)
+
+```
+
+
