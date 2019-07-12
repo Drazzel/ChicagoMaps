@@ -22,7 +22,6 @@ library(tigris)
 library(reshape2)
 library(ggrepel)
 library(ggmap)
-library(rgeos)
 
 options(tigris_use_cache = TRUE)
 ```
