@@ -1,0 +1,77 @@
+---
+title: "Grocery Bar Maps"
+author: "Drazzel Feliu"
+date: "7/12/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r library_load, include=FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(sf)
+library(viridis)
+library(leaflet)
+library(maps)
+library(htmlwidgets)
+library(tidycensus)
+library(htmltools)
+library(tigris)
+library(reshape2)
+library(ggrepel)
+library(ggmap)
+library(rgeos)
+
+options(tigris_use_cache = TRUE)
+```
+
+```{r shapefiles, include=FALSE}
+county_boundaries_il <- get_acs(geography = "county",
+        variables = "B19013_001",
+        state = "IL",
+        county = "Cook",
+        geometry = T,
+        year = 2017)
+
+tract_boundaries_il <- get_acs(geography = "tract",
+        variables = "B19013_001",
+        state = "IL",
+        county = "Cook",
+        geometry = T,
+        year = 2017)
+
+community_areas_il <- read_sf("geo_export_72cf3d72-fa82-4448-a382-c9dd6dcb4fd2.shp")
+
+neighborhoods_il <- read_sf("Neighborhoods_2012b.shp")
+
+neighborhoods_il <- st_transform(neighborhoods_il, 4326)
+
+community_areas_il$community <- str_to_title(community_areas_il$community)
+```
+
+```{r Google Places API}
+library(googleway)
+api_key <- "AIzaSyAFFcGpLTldddjBi2tpCY1NMF2pdMTS8ac"
+```
+
+```{r Loop to Pull Bar & Grocery Data}
+# Bars <- google_places(search_string = "Bars in Chicago, Illinois",
+#                      key = api_key)
+
+tract_centroids <- st_centroid(tract_boundaries_il)
+
+
+test_centroids <- tract_centroids[1:10,]
+
+#coordinates are in longlat for shapefiles
+#coordinates need to in latlong for query
+
+for (i in 1:nrow(test_centroids)) {
+  assign(paste('bars', i, sep='_'), google_places(location = c(test_centroids$geometry[[i]][2],test_centroids$geometry[[i]][1]),
+              place_type = "bar",
+              radius = 2000,
+              key = api_key))}
+```
+
