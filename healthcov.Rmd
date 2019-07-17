@@ -1,0 +1,173 @@
+---
+title: "Chicago Maps"
+author: "Drazzel Feliu"
+date: "6/18/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r library_load, include=FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(sf)
+library(viridis)
+library(leaflet)
+library(maps)
+library(htmlwidgets)
+library(tidycensus)
+library(htmltools)
+library(tigris)
+library(reshape2)
+library(ggrepel)
+library(ggmap)
+library(openxlsx)
+
+options(tigris_use_cache = TRUE)
+```
+
+```{r shapefiles, include=FALSE}
+boroughboundaries <- get_acs(geography = "county",
+        variables = "B19013_001",
+        state = "IL",
+        county = "Cook",
+        geometry = T,
+        year = 2017)
+
+communityareas <- read_sf("geo_export_72cf3d72-fa82-4448-a382-c9dd6dcb4fd2.shp")
+
+neighborhoods <- read_sf("Neighborhoods_2012b.shp")
+
+neighborhoods <- st_transform(neighborhoods, 4326)
+
+data <- read_csv("Per_Capita_Income.csv")
+data <- data %>% mutate(`COMMUNITY AREA NAME`=str_to_title(`COMMUNITY AREA NAME`))
+data <- data %>% filter(!is.na(`Community Area Number`))
+
+communityareas$community <- str_to_title(communityareas$community)
+
+full_data <- merge(communityareas,data, by.x="area_num_1", by.y="Community Area Number")
+
+colnames(full_data) <- str_to_lower(colnames(full_data)) %>% str_replace_all(.," ","_")
+```
+
+```{r Paral Data + Merge}
+paral <- read.xlsx("ParalDataSet.xlsx", sheet =13)
+
+paralhic <- paral %>% filter(X1=="2013-2017", Health.Insurance.Coverage=="Percent Insured")
+colnames(paralhic) <- c("year","community","health_insurance_cov","percentage")
+paralhic <- paralhic %>% mutate(community=str_trim(community))
+full_data <- full_data %>% mutate(community=str_trim(community))
+
+paralhic <- paralhic %>% mutate(community=str_to_lower(community))
+full_data <- full_data %>% mutate(community=str_to_lower(community))
+
+test_1 <- arrange(full_data,community)
+test2 <- arrange(paralhic,community)
+test_1$community==test2$community
+
+test_1$community[55]
+test2$community[55]
+
+test_1$community[56]
+test2$community[56]
+
+test_1$community[57] <- "o'hare"
+test2$community[57]
+
+test3 <- merge(test_1,test2, by="community")
+hicpcolor <- colorNumeric("magma",test3$percentage)
+
+tabels <- sprintf(
+  paste0(
+    "<strong>Name: </strong>%s<br/>",
+    "<strong>Percentage: </strong>%g<br/>"),
+  test3$community,
+  test3$percentage*100) %>% 
+  lapply(HTML)
+
+toptions <- labelOptions(
+  style = list("font-weight" = "normal", padding = "3px 8px"),
+  textsize = "15px",
+  direction = "auto")
+```
+
+
+```{r labels}
+calabels <- sprintf(
+  paste0("<strong>Name: </strong>%s<br/>"),
+  communityareas$community) %>% 
+  lapply(HTML)
+
+callaboptions <- labelOptions(
+  style = list("font-weight" = "normal", padding = "3px 8px"),
+  textsize = "15px",
+  direction = "auto")
+
+neighlabels <- sprintf(
+  paste0("<strong>Name: </strong>%s<br/>"),
+  neighborhoods$PRI_NEIGH) %>% 
+  lapply(HTML)
+
+neighlaboptions <- labelOptions(
+  style = list("font-weight" = "normal", padding = "3px 8px"),
+  textsize = "15px",
+  direction = "auto")
+```
+
+```{r community_areas}
+leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data= st_geometry(communityareas),
+              color = "black",
+              fillColor = NULL,
+              popup = calabels,
+              popupOptions = callaboptions,
+              weight = 2.5,
+              fillOpacity = .001,
+              smoothFactor = .2)
+```
+
+
+```{r neighborhoods}
+leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data= st_geometry(neighborhoods),
+              color = "black",
+              fillColor = NULL,
+              popup = neighlabels,
+              popupOptions = neighlaboptions,
+              weight = 2.5,
+              fillOpacity = .001,
+              smoothFactor = .2)
+
+```
+
+
+```{r}
+ggplot() + 
+  geom_sf(test3,
+          mapping = aes(fill=health_insurance_cov, color=health_insurance_cov),
+          inherit.aes = F,
+          alpha=.99) + 
+  scale_fill_viridis() + 
+  scale_color_viridis() +
+  theme_minimal() + 
+  ggtitle("Per Capita Income By Community Areas in Chicago",
+          subtitle = "(A chance to look at some numbers)")
+```
+
+```{r Health Insurance Leaflet}
+map <- leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data= st_geometry(test3),
+              color = hicpcolor(test3$percentage),
+              fillColor = hicpcolor(test3$percentage),
+              popup = tabels,
+              popupOptions = toptions,
+              weight = 2.5,
+              fillOpacity = .75,
+              smoothFactor = .2)
+
+saveWidget(map,"healthcoveragechicago.html")
+```
+
+
