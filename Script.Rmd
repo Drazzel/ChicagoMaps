@@ -27,24 +27,49 @@ options(tigris_use_cache = TRUE)
 ```
 
 ```{r shapefiles, include=FALSE}
-boroughboundaries <- get_acs(geography = "county",
-        variables = "B19013_001",
-        state = "IL",
-        county = "Cook",
-        geometry = T,
-        year = 2017)
+# Larger Boundaries - County and City
+
+countyboundaries <- get_acs(geography = "county",
+                            variables = "B19013_001",
+                            state = "IL",
+                            county = "Cook",
+                            geometry = T,
+                            year = 2017)
+
+cityboundary <- read_sf("geo_export_72cf3d72-fa82-4448-a382-c9dd6dcb4fd2.shp")
+
+cityboundary <- st_union(cityboundary)
+
+# Neighborhood and CA boundaries
 
 communityareas <- read_sf("geo_export_72cf3d72-fa82-4448-a382-c9dd6dcb4fd2.shp")
 
 neighborhoods <- read_sf("Neighborhoods_2012b.shp")
 
-neighborhoods <- st_transform(neighborhoods, 4326)
+neighborhoods <- st_transform(neighborhoods, 
+                              4326)
+
+# Tract Level boundaries - City Only
+
+tractlevel <- get_acs(geography = "tract",
+                      variables = "B19013_001",
+                      state = "IL",
+                      county = "Cook",
+                      geometry = T,
+                      year = 2017,
+                      cb = FALSE)
+
+
+# Usable Data
 
 data <- read_csv("Per_Capita_Income.csv")
 
 communityareas$community <- str_to_title(communityareas$community)
 
-full_data <- merge(communityareas,data, by.x="community", by.y="COMMUNITY AREA NAME")
+full_data <- merge(communityareas,
+                   data, 
+                   by.x="community", 
+                   by.y="COMMUNITY AREA NAME")
 
 colnames(full_data) <- str_to_lower(colnames(full_data)) %>% str_replace_all(.," ","_")
 ```
@@ -69,6 +94,12 @@ neighlaboptions <- labelOptions(
   style = list("font-weight" = "normal", padding = "3px 8px"),
   textsize = "15px",
   direction = "auto")
+
+leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data= st_geometry(tractlevel)) %>% 
+  addPolygons(data=st_geometry(cityboundary),
+              color = "purple") %>% 
+  addPolygons()
 ```
 
 ```{r community_areas}
