@@ -21,6 +21,7 @@ library(ggrepel)
 library(ggmap)
 library(openxlsx)
 library(snakecase)
+library(webshot)
 
 options(tigris_use_cache = TRUE)
 ```
@@ -51,10 +52,9 @@ test$x_200_k_or_more_as_pct <- test$x_200_000_or_more_1*100
 
 ```{r}
 calabels <- sprintf(
-  paste0("<strong>Name: </strong>%s<br/>",
-         "<strong>Statewide Percentage: </strong>%g%%<br/>"),
-  test$county,
-  round(test$x_200_k_or_more_as_pct,2)) %>% 
+  paste0("<strong>%g%%</strong> of single filers earning over $200K in Illinois reside in <strong>%s.</strong><br/>"),
+  round(test$x_200_k_or_more_as_pct,2),
+  test$county) %>% 
   lapply(HTML)
 
 callaboptions <- labelOptions(
@@ -82,11 +82,13 @@ map <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>%
               weight = 2.5,
               fillOpacity = .55,
               smoothFactor = .2) %>% 
-  addLegend(title = "Statewide Percentage of<br>Earners Over 200K<br>(Single Filers, By County)",
+  addLegend(title = "Statewide Percentage of<br>Earners Over 200K<br>(Single Filers, By County, <br>In 2017)",
             pal = color_200k,
             values = test$x_200_k_or_more_as_pct,
             position = "topright")
 saveWidget(map,"downstate_200k.html")
+webshot("downstate_200k.html", file = "downstate_200k.png",
+        cliprect = "viewport")
 ```
 
 ```{r}
@@ -115,10 +117,9 @@ test$x_200_k_or_more_as_pct <- test$x_200_000_or_more_1*100
 
 ```{r}
 calabels <- sprintf(
-  paste0("<strong>Name: </strong>%s<br/>",
-         "<strong>Percentage: </strong>%g%%<br/>"),
-  test$county,
-  round(test$x_200_k_or_more_as_pct,2)) %>% 
+  paste0("<strong>%g%%</strong> of single filers earning over $200K in Illinois reside in <strong>%s.</strong><br/>"),
+  round(test$x_200_k_or_more_as_pct,2),
+  test$county) %>% 
   lapply(HTML)
 
 callaboptions <- labelOptions(
@@ -130,13 +131,13 @@ callaboptions <- labelOptions(
 
 ```{r}
 color_200k <- colorNumeric(
-  palette = c("white","blue"),
+  palette = c("blue","red"),
   domain = test$x_200_k_or_more_as_pct)
 ```
 
 
 ```{r}
-map <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>% 
+map <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>%
   addTiles() %>% 
   addPolygons(data= st_geometry(test),
               color = "black",
@@ -146,9 +147,11 @@ map <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>%
               weight = 2.5,
               fillOpacity = .55,
               smoothFactor = .2) %>% 
-  addLegend(title = "Percentage of Statewide<br> Earners Over 200K",
+  addLegend(title = "Statewide Percentage of<br>Earners Over 200K<br>(Single Filers, By County, <br>In 2017)",
             pal = color_200k,
             values = test$x_200_k_or_more_as_pct,
             position = "topright")
 saveWidget(map,"collar_200k.html")
+webshot("collar_200k.html", file = "collar_200k.png",
+        cliprect = "viewport")
 ```
