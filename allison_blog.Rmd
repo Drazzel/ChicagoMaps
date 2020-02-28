@@ -1,0 +1,75 @@
+---
+title: "Allison Blog Post Map"
+output: html_notebook
+---
+
+
+```{r library_load, include=FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(sf)
+library(viridis)
+library(leaflet)
+library(maps)
+library(htmlwidgets)
+library(tidycensus)
+library(htmltools)
+library(tigris)
+library(reshape2)
+library(ggrepel)
+library(ggmap)
+library(openxlsx)
+library(snakecase)
+
+options(tigris_use_cache = TRUE)
+```
+
+```{r}
+countyboundaries <- get_acs(geography = "county",
+                            variables = "B19013_001",
+                            state = "IL",
+                            geometry = T,
+                            year = 2017)
+```
+
+```{r}
+countyboundaries$NAME <- gsub("\\,.*","",countyboundaries$NAME)
+
+counties <- read.xlsx("I:/BUDGET AND TAX/Graduated Rate Income Tax/2020 Report/2020 Report Data/Copy of IRS SOI 2017 IL County.xlsx", sheet = 4)
+
+counties <- counties[-1,]
+colnames(counties) <- to_snake_case(make.names(colnames(counties),unique = T))
+
+test <- left_join(counties, countyboundaries, by = c("county" = "NAME"))
+test <- st_as_sf(test)
+```
+
+```{r}
+calabels <- sprintf(
+  paste0("<strong>Name: </strong>%s<br/>",
+         "<strong>Number: </strong>%g<br/>"),
+  test$county,
+  test$under_1) %>% 
+  lapply(HTML)
+
+callaboptions <- labelOptions(
+  style = list("font-weight" = "normal", 
+               padding = "3px 8px"),
+  textsize = "15px",
+  direction = "auto")
+```
+
+
+```{r}
+leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolygons(data= st_geometry(test),
+              color = "black",
+              fillColor = NULL,
+              popup = calabels,
+              popupOptions = callaboptions,
+              weight = 2.5,
+              fillOpacity = .001,
+              smoothFactor = .2)
+```
+
