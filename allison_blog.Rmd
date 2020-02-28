@@ -26,6 +26,7 @@ options(tigris_use_cache = TRUE)
 ```
 
 ```{r}
+rm(list = ls())
 countyboundaries <- get_acs(geography = "county",
                             variables = "B19013_001",
                             state = "IL",
@@ -43,14 +44,17 @@ colnames(counties) <- to_snake_case(make.names(colnames(counties),unique = T))
 
 test <- left_join(counties, countyboundaries, by = c("county" = "NAME"))
 test <- st_as_sf(test)
+
+test <- test %>% filter(region=="Downstate")
+test$x_200_k_or_more_as_pct <- test$x_200_000_or_more_1*100
 ```
 
 ```{r}
 calabels <- sprintf(
   paste0("<strong>Name: </strong>%s<br/>",
-         "<strong>Number: </strong>%g<br/>"),
+         "<strong>Statewide Percentage: </strong>%g%%<br/>"),
   test$county,
-  test$under_1) %>% 
+  round(test$x_200_k_or_more_as_pct,2)) %>% 
   lapply(HTML)
 
 callaboptions <- labelOptions(
@@ -60,16 +64,91 @@ callaboptions <- labelOptions(
   direction = "auto")
 ```
 
+```{r}
+color_200k <- colorNumeric(
+  palette = c("white","blue"),
+  domain = test$x_200_k_or_more_as_pct)
+```
+
 
 ```{r}
-leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% 
+map <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>%
+  addTiles() %>% 
   addPolygons(data= st_geometry(test),
               color = "black",
-              fillColor = NULL,
+              fillColor = color_200k(test$x_200_k_or_more_as_pct),
               popup = calabels,
               popupOptions = callaboptions,
               weight = 2.5,
-              fillOpacity = .001,
-              smoothFactor = .2)
+              fillOpacity = .55,
+              smoothFactor = .2) %>% 
+  addLegend(title = "Statewide Percentage of<br>Earners Over 200K<br>(Single Filers, By County)",
+            pal = color_200k,
+            values = test$x_200_k_or_more_as_pct,
+            position = "topright")
+saveWidget(map,"downstate_200k.html")
 ```
 
+```{r}
+rm(list = ls())
+countyboundaries <- get_acs(geography = "county",
+                            variables = "B19013_001",
+                            state = "IL",
+                            geometry = T,
+                            year = 2017)
+```
+
+```{r}
+countyboundaries$NAME <- gsub("\\,.*","",countyboundaries$NAME)
+
+counties <- read.xlsx("I:/BUDGET AND TAX/Graduated Rate Income Tax/2020 Report/2020 Report Data/Copy of IRS SOI 2017 IL County.xlsx", sheet = 4)
+
+counties <- counties[-1,]
+colnames(counties) <- to_snake_case(make.names(colnames(counties),unique = T))
+
+test <- left_join(counties, countyboundaries, by = c("county" = "NAME"))
+test <- st_as_sf(test)
+
+test <- test %>% filter(region!="Downstate")
+test$x_200_k_or_more_as_pct <- test$x_200_000_or_more_1*100
+```
+
+```{r}
+calabels <- sprintf(
+  paste0("<strong>Name: </strong>%s<br/>",
+         "<strong>Percentage: </strong>%g%%<br/>"),
+  test$county,
+  round(test$x_200_k_or_more_as_pct,2)) %>% 
+  lapply(HTML)
+
+callaboptions <- labelOptions(
+  style = list("font-weight" = "normal", 
+               padding = "3px 8px"),
+  textsize = "15px",
+  direction = "auto")
+```
+
+```{r}
+color_200k <- colorNumeric(
+  palette = c("white","blue"),
+  domain = test$x_200_k_or_more_as_pct)
+```
+
+
+```{r}
+map <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>% 
+  addTiles() %>% 
+  addPolygons(data= st_geometry(test),
+              color = "black",
+              fillColor = color_200k(test$x_200_k_or_more_as_pct),
+              popup = calabels,
+              popupOptions = callaboptions,
+              weight = 2.5,
+              fillOpacity = .55,
+              smoothFactor = .2) %>% 
+  addLegend(title = "Percentage of Statewide<br> Earners Over 200K",
+            pal = color_200k,
+            values = test$x_200_k_or_more_as_pct,
+            position = "topright")
+saveWidget(map,"collar_200k.html")
+```
