@@ -1,0 +1,179 @@
+---
+title: "Untitled"
+author: "Drazzel Feliu"
+date: "8/26/2020"
+output: html_document
+---
+
+```{r library_load, include=FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(sf)
+library(viridis)
+library(leaflet)
+library(maps)
+library(htmlwidgets)
+library(tidycensus)
+library(htmltools)
+library(tigris)
+library(reshape2)
+library(ggrepel)
+library(ggmap)
+library(openxlsx)
+library(snakecase)
+library(webshot)
+
+options(tigris_use_cache = TRUE)
+```
+
+```{r}
+rm(list = ls())
+countyboundaries <- get_acs(geography = "county",
+                            variables = "B19013_001",
+                            state = "IL",
+                            geometry = T,
+                            year = 2017)
+```
+
+```{r}
+countyboundaries$NAME <- gsub("\\,.*","",countyboundaries$NAME)
+
+counties <- read.xlsx("CountyMigrationMap.xlsx")
+
+colnames(counties) <- to_snake_case(make.names(colnames(counties),unique = T))
+
+data <- left_join(counties, countyboundaries, by = c("county" = "NAME"))
+data <- st_as_sf(data)
+```
+
+Map Label Options
+```{r}
+calabels <- sprintf(
+  paste0("The net migration in <strong>%s</strong> in 2018 was <strong>%g</strong>"),
+  data$county,
+  round(data$net_migration,2)) %>% 
+  lapply(HTML)
+
+callaboptions <- labelOptions(
+  style = list("font-weight" = "normal", 
+               padding = "3px 8px"),
+  textsize = "15px",
+  direction = "auto")
+```
+
+Map Colors
+```{r}
+color_k <- colorNumeric(
+  palette = c("red","white","blue"),
+  domain = data$net_migration)
+
+data_2 <- data %>% filter(county!="Cook County")
+
+color_2k <- colorNumeric(
+  palette = c("red","white","blue"),
+  domain = data_2$net_migration)
+
+data_3 <- data %>% filter(top_10_out_migration==1)
+```
+
+```{r}
+leaflet(options = leafletOptions(zoomSnap=0.1)) %>%
+  addTiles() %>% 
+  addPolygons(data= st_geometry(data),
+              color = "black",
+              fillColor = color_k(data$net_migration),
+              popup = calabels,
+              popupOptions = callaboptions,
+              weight = 2.5,
+              fillOpacity = .55,
+              smoothFactor = .2) %>% 
+  addLegend(title = "Net Migration by County<br>In 2018",
+            pal = color_k,
+            values = data$net_migration,
+            position = "topright")
+```
+
+Cook County Excluded Net Migration
+```{r}
+map_1 <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>%
+  addTiles() %>% 
+  addPolygons(data= st_geometry(data_2),
+              color = "black",
+              fillColor = color_2k(data_2$net_migration),
+              popup = calabels,
+              popupOptions = callaboptions,
+              weight = 2.5,
+              fillOpacity = .55,
+              smoothFactor = .2) %>% 
+  addLegend(title = "Net Migration by County<br>In 2018",
+            pal = color_2k,
+            values = data_2$net_migration,
+            position = "topright")
+```
+
+```{r}
+color_in <- colorNumeric(
+  palette = c("white","blue"),
+  domain = data_3$number_of_returns_2)
+
+color_out <- 
+  colorNumeric(
+  palette = c("white","blue"),
+  domain = data_3$number_of_returns)
+
+calabels_in <- sprintf(
+  paste0("Total in-migration in <strong>%s</strong> in 2018 was <strong>%g</strong>"),
+  data_3$county,
+  round(data_3$number_of_returns_2,2)) %>% 
+  lapply(HTML)
+
+calabels_out <- sprintf(
+  paste0("Total out-migration in <strong>%s</strong> in 2018 was <strong>%g</strong>"),
+  data_3$county,
+  round(data_3$number_of_returns,2)) %>% 
+  lapply(HTML)
+```
+
+In-Migration Map Top 10
+```{r}
+map_2 <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>%
+  addTiles() %>% 
+  addPolygons(data= st_geometry(data_3),
+              color = "black",
+              fillColor = color_in(data_3$number_of_returns_2),
+              popup = calabels_in,
+              popupOptions = callaboptions,
+              weight = 2.5,
+              fillOpacity = .55,
+              smoothFactor = .2) %>% 
+  addLegend(title = "In Migration by County<br>In 2018",
+            pal = color_in,
+            values = data_3$number_of_returns_2,
+            position = "topright")
+```
+
+Out-Migration Map Top 10
+```{r}
+map_3 <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>%
+  addTiles() %>% 
+  addPolygons(data= st_geometry(data_3),
+              color = "black",
+              fillColor = color_out(data_3$number_of_returns),
+              popup = calabels_out,
+              popupOptions = callaboptions,
+              weight = 2.5,
+              fillOpacity = .55,
+              smoothFactor = .2) %>% 
+  addLegend(title = "Out Migration by County<br>In 2018",
+            pal = color_out,
+            values = data_3$number_of_returns,
+            position = "topright")
+```
+
+```{r}
+map_1
+map_2
+map_3
+```
+
