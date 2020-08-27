@@ -172,8 +172,12 @@ map_3 <- leaflet(options = leafletOptions(zoomSnap=0.1)) %>%
 ```
 
 ```{r}
-map_1
-map_2
-map_3
+saveWidget(map_1,"map_1.html")
+webshot("map_1.html", file = "map_1.png", cliprect = "viewport")
+saveWidget(map_2,"map_2.html")
+webshot("map_2.html", file = "map_2.png", cliprect = "viewport")
+saveWidget(map_3,"map_3.html")
+webshot("map_3.html", file = "map_3.png", cliprect = "viewport")
+
 ```
 
